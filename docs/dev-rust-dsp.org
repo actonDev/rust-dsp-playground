@@ -1,4 +1,4 @@
-* Reading
+* References
 ** Biquad
    - http://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
    - http://www.earlevel.com/main/2010/12/20/biquad-calculator/
@@ -6,6 +6,9 @@
    [[file:media/biquad.png][biquad structure]]
 ** Audio I/O
    - https://github.com/rustaudio/cpal
+** Audio decoding (wav)
+   - https://crates.io/crates/hound
+
 * Roadmap [0/2]
 ** TODO simple biquad
    SCHEDULED: <2020-04-22 Wed>
@@ -16,8 +19,6 @@
    - [ ] write output file
    - [ ] calculate rms difference between reference
    - [ ] write tests -> assert difference below some threshold
-*** references
-    - https://crates.io/crates/hound
 
 ** TODO biquad in lua
    - [ ] make same biquad filter in lua
