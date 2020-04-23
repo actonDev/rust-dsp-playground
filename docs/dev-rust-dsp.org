@@ -1,4 +1,4 @@
-* Reading
+* References
 ** Biquad
    - http://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
    - http://www.earlevel.com/main/2010/12/20/biquad-calculator/
@@ -6,19 +6,31 @@
    [[file:media/biquad.png][biquad structure]]
 ** Audio I/O
    - https://github.com/rustaudio/cpal
-* Roadmap [0/2]
-** TODO simple biquad
+** Audio decoding (wav)
+   - https://crates.io/crates/hound
+
+* Roadmap [2/4]
+** DONE simple biquad
    SCHEDULED: <2020-04-22 Wed>
    
    - created 2 wavs: a white noise, and a reference low passed verion
      (with reaper jsfx, see [[file:js.org]] )
-   - [ ] create a simple biquad low pass
-   - [ ] write output file
-   - [ ] calculate rms difference between reference
-   - [ ] write tests -> assert difference below some threshold
-*** references
-    - https://crates.io/crates/hound
+   - [X] create a simple biquad low pass
+   - [X] write output file
+   - [X] calculate rms difference between reference
+   - [X] write tests -> assert difference below some threshold
 
+** DONE calculate biquad params from audio filter params
+   SCHEDULED: <2020-04-23 Thu>
+   
+   Audio filter params:
+   - fc: frequency cutoff
+   - q: resonance
+   - gain_db
+
+** TODO make simple VST :D
+   SCHEDULED: <2020-04-24 Fri>
+   
 ** TODO biquad in lua
    - [ ] make same biquad filter in lua
    - [ ] make dsp calculation in lua

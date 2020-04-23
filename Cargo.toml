@@ -8,6 +8,10 @@ edition = "2018"
 
 [dependencies]
 
+[dev-dependencies]
+hound = "3.4.0"
+more-asserts = "0.2.1"
+
 [[example]]
-name = "biquadex"
-path = "examples/biquadex/main.rs"
+name = "hound_read"
+path = "examples/hound_read.rs"
