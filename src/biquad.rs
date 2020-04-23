@@ -1,4 +1,4 @@
-pub struct Biquad {
+pub struct Params {
     pub a0: f64,
     pub a1: f64,
     pub a2: f64,
@@ -6,7 +6,7 @@ pub struct Biquad {
     pub b2: f64,
 }
 
-pub const LOWPASS_FC_1000_Q_0_7071_GAIN_6: Biquad = Biquad {
+pub const LOWPASS_FC_1000_Q_0_7071_GAIN_6: Params = Params {
     a0: 0.00460399444634034,
     a1: 0.00920798889268068,
     a2: 0.00460399444634034,
@@ -15,8 +15,8 @@ pub const LOWPASS_FC_1000_Q_0_7071_GAIN_6: Biquad = Biquad {
 };
 
 #[derive(Default)]
-pub struct BiquadSamples {
-    pub sin: f64,
+struct Samples {
+    sin: f64,
     // past samples
     sin_1: f64,
     sin_2: f64,
@@ -24,9 +24,23 @@ pub struct BiquadSamples {
     sout_2: f64,
 }
 
-impl Default for Biquad {
+pub struct Process {
+    pub params: Params,
+    samples: Samples,
+}
+
+impl Process {
+    pub fn new(params: Params) -> Self {
+        Self {
+            params: params,
+            samples: Samples::default(),
+        }
+    }
+}
+
+impl Default for Params {
     fn default() -> Self {
-        Biquad {
+        Params {
             a0: 1.0,
             a1: 0.0,
             a2: 0.0,
@@ -36,24 +50,27 @@ impl Default for Biquad {
     }
 }
 
-pub fn process(biquad: &Biquad, samples: &mut BiquadSamples) -> f64 {
-    let direct = samples.sin * biquad.a0;
+impl Process {
+    // processing one sample
+    pub fn process(&mut self, sample: f64) -> f64 {
+        let samples = &mut self.samples;
+        let params = &self.params;
+        samples.sin = sample;
+        let direct = samples.sin * params.a0;
 
-    let forw_1 = samples.sin_1 * biquad.a1;
-    let forw_2 = samples.sin_2 * biquad.a2;
+        let forw_1 = samples.sin_1 * params.a1;
+        let forw_2 = samples.sin_2 * params.a2;
 
-    let bakw_1 = - samples.sout_1 * biquad.b1;
-    let bakw_2 = - samples.sout_2 * biquad.b2;
+        let bakw_1 = -samples.sout_1 * params.b1;
+        let bakw_2 = -samples.sout_2 * params.b2;
 
-    let out = direct + forw_1 + forw_2 + bakw_1 + bakw_2;
+        let out = direct + forw_1 + forw_2 + bakw_1 + bakw_2;
 
-    // temp
-    // let out = direct;
-    
-    samples.sin_2 = samples.sin_1;
-    samples.sin_1 = samples.sin;
+        samples.sin_2 = samples.sin_1;
+        samples.sin_1 = samples.sin;
 
-    samples.sout_2 = samples.sout_1;
-    samples.sout_1 = out;
-    out
+        samples.sout_2 = samples.sout_1;
+        samples.sout_1 = out;
+        out
+    }
 }

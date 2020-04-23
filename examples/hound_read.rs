@@ -38,7 +38,7 @@ fn main() {
 
 fn filter_file(samples: &Vec<i16>) {
     let biquad_params = biquad::LOWPASS_FC_1000_Q_0_7071_GAIN_6;
-    let mut biquad_samples: biquad::BiquadSamples = Default::default();
+    let mut biquad_process = biquad::Process::new(biquad_params);
 
     let spec = hound::WavSpec {
         channels: 1,
@@ -50,8 +50,7 @@ fn filter_file(samples: &Vec<i16>) {
 
     for s in samples {
         let s_float = (*s as f64) / i16::MAX as f64;
-        biquad_samples.sin = s_float;
-        let sout = biquad::process(&biquad_params, &mut biquad_samples);
+        let sout = biquad_process.process(s_float);
         let sout_int = (sout * (i16::MAX as f64)) as i16;
         // println!("s {} sfloat {}", s, s_float);
         // println!("  sout {} sout_int {}", sout, sout_int);
