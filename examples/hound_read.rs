@@ -49,11 +49,7 @@ fn filter_file(samples: &Vec<i16>) {
     let mut writer = hound::WavWriter::create("assets/filtered.wav", spec).unwrap();
 
     for s in samples {
-        let s_float = (*s as f64) / i16::MAX as f64;
-        let sout = biquad_process.process(s_float);
-        let sout_int = (sout * (i16::MAX as f64)) as i16;
-        // println!("s {} sfloat {}", s, s_float);
-        // println!("  sout {} sout_int {}", sout, sout_int);
-        writer.write_sample(sout_int).unwrap();
+        let sout = biquad_process.process(s);
+        writer.write_sample(sout).unwrap();
     }
 }

@@ -1,3 +1,5 @@
+use std::i16;
+
 pub struct Params {
     pub a0: f64,
     pub a1: f64,
@@ -50,12 +52,54 @@ impl Default for Params {
     }
 }
 
+/**
+ * Representing samples in float from -1.0 to 1.0 range
+ * 
+ * Internal representation is in f64.
+ * For example, for an int8 range that goes from -128 to 127
+ * - -127 will give -1.0
+ * - +127 will give +1.0 
+ */
+pub trait FloatOfMax1<T> {
+    fn to_f64(&self) -> f64;
+    fn from_f64(&self, x: f64) -> T;
+}
+
+impl FloatOfMax1<f64> for f64 {
+    fn to_f64(&self) -> f64 {
+        *self
+    }
+
+    fn from_f64(&self, x: f64) -> f64 {
+        x
+    }
+}
+
+impl FloatOfMax1<i16> for i16 {
+    fn to_f64(&self) -> f64 {
+        (*self as f64) / i16::MAX as f64
+    }
+
+    fn from_f64(&self, x: f64) -> i16 {
+        (x * (i16::MAX as f64)) as i16
+    }
+}
+
 impl Process {
-    // processing one sample
-    pub fn process(&mut self, sample: f64) -> f64 {
+    /**
+     * Processing one sample
+     *
+     * Input sample can be i16 or f64
+     * TODO: use type 2? read that it's better for floating point calculations
+     * see https://www.earlevel.com/main/2003/02/28/biquads/
+     * <pre>direct form I is usually the best choice for fixed point, and transposed direct form II for floating point.</pre>
+     */
+    pub fn process<T>(&mut self, sample: &dyn FloatOfMax1<T>) -> T {
         let samples = &mut self.samples;
         let params = &self.params;
-        samples.sin = sample;
+        samples.sin = sample.to_f64();
+
+        // biquad calculation
         let direct = samples.sin * params.a0;
 
         let forw_1 = samples.sin_1 * params.a1;
@@ -66,11 +110,14 @@ impl Process {
 
         let out = direct + forw_1 + forw_2 + bakw_1 + bakw_2;
 
+        // filling the past samples
         samples.sin_2 = samples.sin_1;
         samples.sin_1 = samples.sin;
 
         samples.sout_2 = samples.sout_1;
         samples.sout_1 = out;
-        out
+
+        // the sample is not really used here.. but we need to just for it's type
+        sample.from_f64(out)
     }
 }
