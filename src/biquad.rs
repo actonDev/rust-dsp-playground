@@ -1,6 +1,6 @@
-//! Biquad tests
+//! Biquad filters
 //! 
-//! See https://www.earlevel.com/main/2010/12/20/biquad-calculator/
+//! Credits: https://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
 
 use crate::filter;
 use std::f64::consts::PI;

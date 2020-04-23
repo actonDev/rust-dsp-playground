@@ -1,3 +1,7 @@
+//! Biquad tests
+//! 
+//! See https://www.earlevel.com/main/2010/12/20/biquad-calculator/
+
 #[macro_use]
 extern crate more_asserts;
 
