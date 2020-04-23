@@ -1,11 +1,41 @@
+use crate::filter;
+use std::f64::consts::PI;
 use std::i16;
 
+#[derive(std::cmp::PartialEq, std::fmt::Debug)]
 pub struct Params {
     pub a0: f64,
     pub a1: f64,
     pub a2: f64,
     pub b1: f64,
     pub b2: f64,
+}
+
+impl Params {
+    pub fn from_audio_filter_params(
+        filter_params: filter::Params,
+        filter_type: filter::Type,
+        fs: i32,
+    ) -> Params {
+        match filter_type {
+            filter::Type::LowPass => low_pass(filter_params, fs)
+        }
+    }
+}
+
+pub fn low_pass(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let norm = 1.0 / (1.0 + k / filter_params.q + k * k);
+
+    let a0 = k * k * norm;
+    Params {
+        a0: a0,
+        a1: 2.0 * a0,
+        a2: a0,
+        b1: 2.0 * (k * k - 1.0) * norm,
+        b2: (1.0 - k / filter_params.q + k * k) * norm,
+    }
 }
 
 pub const LOWPASS_FC_1000_Q_0_7071_GAIN_6: Params = Params {
@@ -54,11 +84,11 @@ impl Default for Params {
 
 /**
  * Representing samples in float from -1.0 to 1.0 range
- * 
+ *
  * Internal representation is in f64.
  * For example, for an int8 range that goes from -128 to 127
  * - -127 will give -1.0
- * - +127 will give +1.0 
+ * - +127 will give +1.0
  */
 pub trait FloatOfMax1<T> {
     fn to_f64(&self) -> f64;
