@@ -6,4 +6,10 @@ pub struct Params {
 
 pub enum Type {
     LowPass,
+    HighPass,
+    BandPass,
+    Notch,
+    Peak,
+    LowShelf,
+    HighShelf,
 }

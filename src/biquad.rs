@@ -1,3 +1,7 @@
+//! Biquad tests
+//! 
+//! See https://www.earlevel.com/main/2010/12/20/biquad-calculator/
+
 use crate::filter;
 use std::f64::consts::PI;
 use std::i16;
@@ -18,15 +22,22 @@ impl Params {
         fs: i32,
     ) -> Params {
         match filter_type {
-            filter::Type::LowPass => low_pass(filter_params, fs)
+            filter::Type::LowPass => low_pass(filter_params, fs),
+            filter::Type::HighPass => high_pass(filter_params, fs),
+            filter::Type::BandPass => band_pass(filter_params, fs),
+            filter::Type::Notch => notch(filter_params, fs),
+            filter::Type::Peak => peak(filter_params, fs),
+            filter::Type::LowShelf => low_shelf(filter_params, fs),
+            filter::Type::HighShelf => high_shelf(filter_params, fs),
         }
     }
 }
 
-pub fn low_pass(filter_params: filter::Params, fs: i32) -> Params {
+fn low_pass(filter_params: filter::Params, fs: i32) -> Params {
     let fc = filter_params.fc / fs as f64;
     let k = (PI * fc).tan();
-    let norm = 1.0 / (1.0 + k / filter_params.q + k * k);
+    let q = filter_params.q;
+    let norm = 1.0 / (1.0 + k / q + k * k);
 
     let a0 = k * k * norm;
     Params {
@@ -34,7 +45,141 @@ pub fn low_pass(filter_params: filter::Params, fs: i32) -> Params {
         a1: 2.0 * a0,
         a2: a0,
         b1: 2.0 * (k * k - 1.0) * norm,
-        b2: (1.0 - k / filter_params.q + k * k) * norm,
+        b2: (1.0 - k / q + k * k) * norm,
+    }
+}
+
+fn high_pass(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let q = filter_params.q;
+    let norm = 1.0 / (1.0 + k / q + k * k);
+
+    let a0 = norm;
+    Params {
+        a0: a0,
+        a1: -2.0 * a0,
+        a2: a0,
+        b1: 2.0 * (k * k - 1.0) * norm,
+        b2: (1.0 - k / q + k * k) * norm,
+    }
+}
+
+fn band_pass(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let q = filter_params.q;
+    let norm = 1.0 / (1.0 + k / q + k * k);
+
+    let a0 = k / q * norm;
+    Params {
+        a0: a0,
+        a1: 0.0,
+        a2: -a0,
+        b1: 2.0 * (k * k - 1.0) * norm,
+        b2: (1.0 - k / q + k * k) * norm,
+    }
+}
+
+fn notch(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let q = filter_params.q;
+    let norm = 1.0 / (1.0 + k / q + k * k);
+
+    let a0 = (1.0 + k * k) * norm;
+    let a1 = 2.0 * (k * k - 1.0) * norm;
+    Params {
+        a0: a0,
+        a1: a1,
+        a2: a0,
+        b1: a1,
+        b2: (1.0 - k / q + k * k) * norm,
+    }
+}
+
+fn peak(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let q = filter_params.q;
+    // let v = filter_params.gain_db;
+    let v = 10.0f64.powf(filter_params.gain_db.abs() / 20.0);
+
+    if filter_params.gain_db >= 0.0 {
+        // boost
+        let norm = 1.0 / (1.0 + 1.0 / q * k + k * k);
+        let a0 = (1.0 + v / q * k + k * k) * norm;
+        let a1 = 2.0 * (k * k - 1.0) * norm;
+        let a2 = (1.0 - v / q * k + k * k) * norm;
+        let b1 = a1;
+        let b2 = (1.0 - 1.0 / q * k + k * k) * norm;
+        Params { a0, a1, a2, b1, b2 }
+    } else {
+        // cut
+        let norm = 1.0 / (1.0 + v/q * k + k * k);
+        let a0 = (1.0 + 1.0/q * k + k * k) * norm;
+        let a1 = 2.0 * (k * k - 1.0) * norm;
+        let a2 = (1.0 - 1.0/q * k + k * k) * norm;
+        let b1 = a1;
+        let b2 = (1.0 - v/q * k + k * k) * norm;
+
+        Params { a0, a1, a2, b1, b2 }
+    }
+}
+
+fn low_shelf(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let v = 10.0f64.powf(filter_params.gain_db.abs() / 20.0);
+
+    if filter_params.gain_db >= 0.0 {
+        // boost
+        let norm = 1.0 / (1.0 + 2f64.sqrt() * k + k * k);
+        let a0 = (1.0 + (2f64*v).sqrt() * k + v * k * k) * norm;
+        let a1 = 2.0 * (v * k * k - 1.0) * norm;
+        let a2 = (1.0 - (2f64*v).sqrt() * k + v * k * k) * norm;
+        let b1 = 2.0 * (k * k - 1.0) * norm;
+        let b2 = (1.0 - 2f64.sqrt() * k + k * k) * norm;
+
+        Params { a0, a1, a2, b1, b2 }
+    } else {
+        // cut
+        let norm = 1.0 / (1.0 + (2f64*v).sqrt() * k + v * k * k);
+        let a0 = (1.0 + 2f64.sqrt() * k + k * k) * norm;
+        let a1 = 2.0 * (k * k - 1.0) * norm;
+        let a2 = (1.0 - 2f64.sqrt() * k + k * k) * norm;
+        let b1 = 2.0 * (v * k * k - 1.0) * norm;
+        let b2 = (1.0 - (2f64*v).sqrt() * k + v * k * k) * norm;
+
+        Params { a0, a1, a2, b1, b2 }
+    }
+}
+
+fn high_shelf(filter_params: filter::Params, fs: i32) -> Params {
+    let fc = filter_params.fc / fs as f64;
+    let k = (PI * fc).tan();
+    let v = 10.0f64.powf(filter_params.gain_db.abs() / 20.0);
+
+    if filter_params.gain_db >= 0.0 {
+        // boost
+        let norm = 1.0 / (1.0 + 2f64.sqrt() * k + k * k);
+        let a0 = (v + (2f64*v).sqrt() * k + k * k) * norm;
+        let a1 = 2.0 * (k * k - v) * norm;
+        let a2 = (v - (2f64*v).sqrt() * k + k * k) * norm;
+        let b1 = 2.0 * (k * k - 1.0) * norm;
+        let b2 = (1.0 - 2f64.sqrt() * k + k * k) * norm;
+
+        Params { a0, a1, a2, b1, b2 }
+    } else {
+        // cut
+        let norm = 1.0 / (v + (2f64*v).sqrt() * k + k * k);
+        let a0 = (1.0 + 2f64.sqrt() * k + k * k) * norm;
+        let a1 = 2.0 * (k * k - 1.0) * norm;
+        let a2 = (1.0 - 2f64.sqrt() * k + k * k) * norm;
+        let b1 = 2.0 * (k * k - v) * norm;
+        let b2 = (v - (2f64*v).sqrt() * k + k * k) * norm;
+
+        Params { a0, a1, a2, b1, b2 }
     }
 }
 
