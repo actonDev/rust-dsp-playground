@@ -8,7 +8,8 @@
    - https://github.com/rustaudio/cpal
 ** Audio decoding (wav)
    - https://crates.io/crates/hound
-
+** debugging vst
+   - https://blog.wavosaur.com/debugging-vst-2-4-part-1-visual-studio/
 * Roadmap [2/4]
 ** DONE simple biquad
    SCHEDULED: <2020-04-22 Wed>
