@@ -3,7 +3,7 @@ use hound;
 use std::i16;
 
 fn main() {
-    let mut reader = hound::WavReader::open("assets/white_noise_mono.wav").unwrap();
+    let mut reader = hound::WavReader::open("tests/assets/white_noise_mono.wav").unwrap();
     let samples = reader.samples::<i16>();
     let mut samples_vec: Vec<i16> = Vec::new();
 
@@ -25,15 +25,16 @@ fn main() {
         sample_format: hound::SampleFormat::Int,
     };
 
-    let mut writer = hound::WavWriter::create("assets/write.wav", spec).unwrap();
+    let mut writer = hound::WavWriter::create("tests/assets/white.wav", spec).unwrap();
     for s in &samples_vec {
-        writer.write_sample((*s as f32 * 0.1) as i16).unwrap();
+        writer.write_sample((*s as f32 * 1.0) as i16).unwrap();
     }
     writer.finalize().unwrap();
 
     println!("count {}", count);
 
     filter_file(&samples_vec);
+    write_file(&samples_vec);
 }
 
 fn filter_file(samples: &Vec<i16>) {
@@ -46,10 +47,25 @@ fn filter_file(samples: &Vec<i16>) {
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
-    let mut writer = hound::WavWriter::create("assets/filtered.wav", spec).unwrap();
+    let mut writer = hound::WavWriter::create("tests/assets/filtered.wav", spec).unwrap();
 
     for s in samples {
         let sout = biquad_process.process(s);
         writer.write_sample(sout).unwrap();
+    }
+}
+
+fn write_file(samples: &Vec<i16>) {
+
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 44100,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create("tests/assets/white_noise2.wav", spec).unwrap();
+
+    for s in samples {
+        writer.write_sample(*s).unwrap();
     }
 }
