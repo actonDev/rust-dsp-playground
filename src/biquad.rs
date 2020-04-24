@@ -250,6 +250,16 @@ impl FloatOfMax1<f64> for f64 {
     }
 }
 
+impl FloatOfMax1<f32> for f32 {
+    fn to_f64(&self) -> f64 {
+        *self as f64
+    }
+
+    fn from_f64(&self, x: f64) -> f32 {
+        x as f32
+    }
+}
+
 impl FloatOfMax1<i16> for i16 {
     fn to_f64(&self) -> f64 {
         (*self as f64) / i16::MAX as f64
