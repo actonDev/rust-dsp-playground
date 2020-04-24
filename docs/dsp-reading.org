@@ -1,0 +1,245 @@
+* The Dark Synth filters (3 filters)
+  https://amazingnoises.com/wp-content/uploads/2014/02/dark_synth.pdf
+** LP_Diode
+   https://pastebin.com/i2c8ddh7
+   Filters code ported to Max by Oli Larkin - www.olilarkin.co.uk
+   LP_Diode License:
+   #+BEGIN_SRC c
+// This code is released under the MIT license (see below).
+//
+// The MIT License
+// 
+// Copyright (c) 2012 Dominique Wurtz (www.blaukraut.info)
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+#ifndef __DIODE_LADDER_FILTER_HPP__
+#define __DIODE_LADDER_FILTER_HPP__
+
+#include <cmath>
+#include <algorithm>
+
+// Emulation of Diode ladder lowpass filter as found in Roland TB303 or EMS VCS3
+// Version 0.1 (04/03/2012)
+
+class DiodeLadderFilter
+{
+ public:
+
+  DiodeLadderFilter()
+    {
+      std::fill(z, z + 4, 0);
+      set_q(0);
+    }
+
+  void reset()
+  {
+    if (k < 17) std::fill(z, z + 4, 0);
+  }
+
+  // q: resonance in the range [0..1]
+  void set_q(const double q)
+  {
+    assert(q >= 0 && q <= 1.);
+    k = 20 * q;
+    A = 1 + 0.5*k; // resonance gain compensation 
+  }
+
+  // Process one sample.
+  //
+  // x: input signal
+  // fc: normalized cutoff frequency in the range [0..1] => 0 HZ .. Nyquist
+  __forceinline double tick(const double x, const double fc)
+  {
+    assert(fc > 0 && fc < 1);
+    const double wc = PI_HALF * fc; // PI is Nyquist frequency 
+    // wc = 2 * tan(0.5*wc); // dewarping, not required with 2x oversampling
+    const double wc2 = wc*wc;
+    const double wc3 = wc2*wc;
+    const double wc4 = wc3*wc;
+    const double b = 1 / (1+8*wc+20*wc2+16*wc3+2*wc4);
+    const double g = 2*wc4 * b;
+
+    // current state
+    const double s = (z[0]*wc3 + z[1]*(wc2+2*wc3) + z[2]*(wc+4*wc2+2*wc3) + z[3]*(1+6*wc+9*wc2+2*wc3)) * b;
+		
+    // solve feedback loop (linear)
+    double y4 = (g*x + s) / (1 + g*k);
+
+    // input clipping
+    const double y0 = fast_tanh(x - k*y4);
+
+    // Compute all integrator outputs (y1, y2, y3, y4).
+    // Unlike in the well-known Moog transistor ladder, this gets quite nasty due the
+    // inherent coupling between filter stages.
+    const double y1 = (y0*(2*wc+12*wc2+20*wc3+8*wc4) + z[0]*(1+6*wc+10*wc2+4*wc3) +
+		       z[1]*(2*wc+8*wc2+6*wc3) + z[2]*(2*wc2+4*wc3) + z[3]*2*wc3)*b;
+    const double y2 = (y0*(2*wc2+8*wc3+6*wc4) + z[0]*(wc+4*wc2+3*wc3) +
+		       z[1]*(1+6*wc+11*wc2+6*wc3) + z[2]*(wc+4*wc2+4*wc3) + z[3]*(wc2+2*wc3))*b;
+    const double y3 = (y0*(2*wc3+4*wc4) + z[0]*(wc2+2*wc3) +
+		       z[1]*(wc+4*wc2+4*wc3) + z[2]*(1+6*wc+10*wc2+4*wc3) + z[3]*(wc+4*wc2+2*wc3))*b;
+    y4 = g*y0 + s;
+
+    // update filter state
+    z[0] += 4*wc*(y0 - y1 + y2);
+    z[1] += 2*wc*(y1 - 2*y2 + y3);
+    z[2] += 2*wc*(y2 - 2*y3 + y4);
+    z[3] += 2*wc*(y3 - 2*y4);
+
+    return A*y4;
+  }
+	
+ private:
+  double k, A;
+  double z[4];
+
+  static __forceinline double fast_tanh(const double x)
+  {
+    return x / (1 + abs(x));
+  }
+};
+
+#endif // __DIODE_LADDER_FILTER_HPP__  
+   #+END_SRC
+** LP_Transistor
+   https://www.kvraudio.com/forum/viewtopic.php?t=349859
+   #+BEGIN_SRC c
+//// LICENSE TERMS: Copyright 2012 Teemu Voipio
+// 
+// You can use this however you like for pretty much any purpose,
+// as long as you don't claim you wrote it. There is no warranty.
+//
+// Distribution of substantial portions of this code in source form
+// must include this copyright notice and list of conditions.
+//
+
+// input delay and state for member variables
+double zi;
+double s[4] = { 0, 0, 0, 0 };
+
+// tanh(x)/x approximation, flatline at very high inputs
+// so might not be safe for very large feedback gains
+// [limit is 1/15 so very large means ~15 or +23dB]
+double tanhXdX(double x)
+{
+  double a = x*x;
+  // IIRC I got this as Pade-approx for tanh(sqrt(x))/sqrt(x) 
+  return ((a + 105)*a + 945) / ((15*a + 420)*a + 945);
+}
+
+// cutoff as normalized frequency (eg 0.5 = Nyquist)
+// resonance from 0 to 1, self-oscillates at settings over 0.9
+void transistorLadder(
+		      double cutoff, double resonance,
+		      double * in, double * out, unsigned nsamples)
+{
+  // tuning and feedback
+  double f = tan(M_PI * cutoff);
+  double r = (40.0/9.0) * resonance;
+
+  for(unsigned n = 0; n < nsamples; ++n)
+    {
+      // input with half delay, for non-linearities
+      double ih = 0.5 * (in[n] + zi); zi = in[n];
+
+      // evaluate the non-linear gains
+      double t0 = tanhXdX(ih - r * s[3]);
+      double t1 = tanhXdX(s[0]);
+      double t2 = tanhXdX(s[1]);
+      double t3 = tanhXdX(s[2]);
+      double t4 = tanhXdX(s[3]);
+
+      // g# the denominators for solutions of individual stages
+      double g0 = 1 / (1 + f*t1), g1 = 1 / (1 + f*t2);
+      double g2 = 1 / (1 + f*t3), g3 = 1 / (1 + f*t4);
+        
+      // f# are just factored out of the feedback solution
+      double f3 = f*t3*g3, f2 = f*t2*g2*f3, f1 = f*t1*g1*f2, f0 = f*t0*g0*f1;
+
+      // solve feedback 
+      double y3 = (g3*s[3] + f3*g2*s[2] + f2*g1*s[1] + f1*g0*s[0] + f0*in[n]) / (1 + r*f0);
+
+      // then solve the remaining outputs (with the non-linear gains here)
+      double xx = t0*(in[n] - r*y3);
+      double y0 = t1*g0*(s[0] + f*xx);
+      double y1 = t2*g1*(s[1] + f*y0);
+      double y2 = t3*g2*(s[2] + f*y1);
+
+      // update state
+      s[0] += 2*f * (xx - y0);
+      s[1] += 2*f * (y0 - y1);
+      s[2] += 2*f * (y1 - y2);
+      s[3] += 2*f * (y2 - t4*y3);
+
+      out[n] = y3;
+    }
+}
+  
+   #+END_SRC
+** Odf_svf filters (LP BP HP)
+   https://www.kvraudio.com/forum/viewtopic.php?p=4932644#p4932644
+   #+BEGIN_SRC c
+// Example code for a TPT/ZDF-SVF (obviously, this could be optimized for production code)
+// written by Robin Schmidt, licensing/copyright: none (public domain)
+// Parameters:
+// fc: cutoff frequency
+// fs: sample-rate
+// R:  damping coefficient
+// N:  number of samples
+// x:  input signal
+// yL: lowpass output
+// yB: bandpass output
+// yH: highpass output
+void svf(double fc, double fs, double R, int N, double x[], double yL[], double yB[], double yH[])
+{
+  double wd = 2*PI*fc;           // target radian frequency
+  double T  = 1/fs;              // sampling period
+  double wa = (2/T)*tan(wd*T/2); // prewarped radian frequency for analog filter (Eq. 3.7)
+  double g  = wa*T/2;            // embedded integrator gain (Fig 3.11), wc == wa
+
+  // states of the 2 integrators, static so we can call the function block-wise while maintaining 
+  // the states from block to block:
+  static double s1 = 0.0;
+  static double s2 = 0.0;
+
+  // loop over the samples:
+  for(int n = 0; n < N; n++)
+    {
+      // compute highpass output via Eq. 5.1:
+      yH[n] = (x[n] - 2*R*s1 - g*s1 - s2) / (1 + 2*R*g + g*g);
+
+      // compute bandpass output by applying 1st integrator to highpass output:
+      yB[n] = g*yH[n] + s1;
+      s1    = g*yH[n] + yB[n]; // state update in 1st integrator
+
+      // compute lowpass output by applying 2nd integrator to bandpass output:
+      yL[n] = g*yB[n] + s2;
+      s2    = g*yB[n] + yL[n]; // state update in 2nd integrator
+
+      // Remark: we have used two TDF2 integrators (Fig. 3.11) where one of them would be in code:
+      // y = g*x + s; // output computation
+      // s = g*x + y; // state update
+    }
+}
+  
+   #+END_SRC
+* Filther
+  - https://joepvanlier.github.io/FiltherManual/
+  - https://github.com/JoepVanlier/JSFX/tree/master/Filther
+  - https://forum.cockos.com/showthread.php?t=213269
