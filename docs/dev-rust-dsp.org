@@ -11,7 +11,7 @@
 ** debugging vst
    - https://blog.wavosaur.com/debugging-vst-2-4-part-1-visual-studio/
    - https://github.com/teragonaudio/MrsWatson
-* Roadmap [2/4]
+* Roadmap [3/6]
 ** DONE simple biquad
    SCHEDULED: <2020-04-22 Wed>
    
@@ -30,11 +30,21 @@
    - q: resonance
    - gain_db
 
-** TODO make simple VST :D
+** DONE make simple VST :D
    SCHEDULED: <2020-04-24 Fri>
+   <2020-04-24 Fri> : simple vst using the biquad filter
+
+** TODO vst parameters
+   SCHEDULED: <2020-04-27 Mon>
    
-** TODO biquad in lua
-   - [ ] make same biquad filter in lua
-   - [ ] make dsp calculation in lua
+
+** TODO gui
+   - sciter ?
+   
+** TODO dsp prototyping in lua
+   - [ ] make simple biquad filter in lua
+     - how does it handle real time processing?
+     - which crate: rlua/mlua/..?
+     - watch lua file/reload?
 * Dev notes
   https://www.reddit.com/r/rust/comments/g5659q/a_clarification_reference_for_splitting_code_into/
